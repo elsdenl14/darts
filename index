@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fléchettes 501</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d0d;
+    --panel: #141414;
+    --border: #2a2a2a;
+    --accent: #e8ff3c;
+    --accent2: #ff4c3b;
+    --text: #f0f0f0;
+    --muted: #555;
+    --win: #3cff7a;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ─── NOISE OVERLAY ─── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 999;
+  }
+
+  /* ─── SETUP SCREEN ─── */
+  #setup {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; min-height: 100vh; padding: 2rem;
+    gap: 2rem;
+  }
+
+  .logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(4rem, 12vw, 9rem);
+    letter-spacing: 0.04em;
+    line-height: 0.9;
+    text-align: center;
+  }
+
+  .logo span { color: var(--accent); }
+
+  .tagline {
+    color: var(--muted);
+    font-size: 0.75rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+  }
+
+  .setup-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2rem 2.5rem;
+    width: 100%; max-width: 440px;
+    display: flex; flex-direction: column; gap: 1.5rem;
+  }
+
+  .player-row { display: flex; flex-direction: column; gap: 0.5rem; }
+
+  .player-row label {
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .player-row input {
+    background: #0d0d0d;
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 1rem;
+    padding: 0.75rem 1rem;
+    border-radius: 2px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .player-row input:focus { border-color: var(--accent); }
+
+  .btn-start {
+    background: var(--accent);
+    color: #000;
+    border: none;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.4rem;
+    letter-spacing: 0.1em;
+    padding: 0.9rem;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: transform 0.15s, background 0.2s;
+  }
+
+  .btn-start:hover { background: #f5ff6b; transform: translateY(-1px); }
+  .btn-start:active { transform: translateY(1px); }
+
+  /* ─── GAME SCREEN ─── */
+  #game { display: none; flex-direction: column; min-height: 100vh; }
+
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .topbar-logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.6rem;
+    letter-spacing: 0.08em;
+    color: var(--accent);
+  }
+
+  .round-badge {
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .btn-reset {
+    background: none; border: 1px solid var(--border);
+    color: var(--muted); font-family: 'DM Mono', monospace;
+    font-size: 0.65rem; letter-spacing: 0.15em;
+    text-transform: uppercase; padding: 0.4rem 0.8rem;
+    cursor: pointer; border-radius: 2px;
+    transition: border-color 0.2s, color 0.2s;
+  }
+  .btn-reset:hover { border-color: var(--accent2); color: var(--accent2); }
+
+  /* ─── SCOREBOARD ─── */
+  .scoreboard {
+    display: grid; grid-template-columns: 1fr 1fr;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .player-panel {
+    padding: 1.5rem 1.5rem 1rem;
+    border-right: 1px solid var(--border);
+    transition: background 0.3s;
+    position: relative;
+  }
+
+  .player-panel:last-child { border-right: none; }
+  .player-panel.active { background: #18180e; }
+
+  .active-indicator {
+    position: absolute; top: 0; left: 0; right: 0;
+    height: 3px;
+    background: var(--accent);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.3s ease;
+  }
+
+  .player-panel.active .active-indicator { transform: scaleX(1); }
+
+  .player-name {
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 0.4rem;
+  }
+
+  .player-name .crown { color: var(--accent); margin-right: 0.3em; }
+
+  .score-big {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(3.5rem, 8vw, 6rem);
+    line-height: 1;
+    transition: color 0.3s;
+  }
+
+  .player-panel.active .score-big { color: var(--accent); }
+
+  .score-danger { color: var(--accent2) !important; }
+
+  .stats-row {
+    display: flex; gap: 1.5rem;
+    margin-top: 0.8rem;
+    font-size: 0.65rem;
+    color: var(--muted);
+  }
+
+  .stat { display: flex; flex-direction: column; gap: 0.1rem; }
+  .stat-label { font-size: 0.55rem; letter-spacing: 0.15em; text-transform: uppercase; }
+  .stat-value { color: var(--text); font-size: 0.75rem; }
+
+  /* ─── HISTORY STRIP ─── */
+  .history-strip {
+    display: flex; gap: 0.3rem;
+    padding: 0.6rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    min-height: 2.5rem;
+    align-items: center;
+  }
+
+  .history-strip::-webkit-scrollbar { height: 3px; }
+  .history-strip::-webkit-scrollbar-track { background: var(--bg); }
+  .history-strip::-webkit-scrollbar-thumb { background: var(--border); }
+
+  .hist-tag {
+    font-size: 0.6rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 2px;
+    white-space: nowrap;
+    opacity: 0;
+    animation: fadeIn 0.3s forwards;
+  }
+
+  @keyframes fadeIn { to { opacity: 1; } }
+
+  .hist-p1 { background: #1e1e0a; color: var(--accent); border: 1px solid #3a3a10; }
+  .hist-p2 { background: #1a0a0a; color: var(--accent2); border: 1px solid #3a1010; }
+
+  .hist-label {
+    font-size: 0.55rem;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    margin-right: 0.3rem;
+  }
+
+  /* ─── INPUT AREA ─── */
+  .input-area {
+    padding: 1.5rem;
+    display: flex; flex-direction: column; gap: 1rem;
+    flex: 1;
+  }
+
+  .turn-label {
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .turn-label span { color: var(--accent); }
+
+  .score-input-row {
+    display: flex; gap: 0.75rem; align-items: stretch;
+  }
+
+  .score-input {
+    flex: 1;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2.5rem;
+    text-align: center;
+    padding: 0.5rem 1rem;
+    border-radius: 2px;
+    outline: none;
+    transition: border-color 0.2s;
+    -moz-appearance: textfield;
+  }
+
+  .score-input::-webkit-inner-spin-button,
+  .score-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+
+  .score-input:focus { border-color: var(--accent); }
+  .score-input.error { border-color: var(--accent2); animation: shake 0.3s; }
+
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    25% { transform: translateX(-6px); }
+    75% { transform: translateX(6px); }
+  }
+
+  .btn-validate {
+    background: var(--accent);
+    color: #000;
+    border: none;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.4rem;
+    letter-spacing: 0.06em;
+    padding: 0 1.5rem;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: background 0.15s, transform 0.1s;
+    white-space: nowrap;
+  }
+
+  .btn-validate:hover { background: #f5ff6b; }
+  .btn-validate:active { transform: scale(0.97); }
+
+  /* ─── QUICK PAD ─── */
+  .quick-pad {
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.4rem;
+  }
+
+  .q-btn {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.8rem;
+    padding: 0.5rem 0.25rem;
+    cursor: pointer; border-radius: 2px;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+    text-align: center;
+  }
+
+  .q-btn:hover { background: #222; border-color: var(--accent); color: var(--accent); }
+
+  .error-msg {
+    font-size: 0.7rem;
+    color: var(--accent2);
+    letter-spacing: 0.1em;
+    min-height: 1em;
+  }
+
+  /* ─── WIN OVERLAY ─── */
+  #win-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 100;
+    flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 1.5rem;
+    padding: 2rem;
+  }
+
+  .win-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(3rem, 10vw, 7rem);
+    color: var(--win);
+    letter-spacing: 0.06em;
+    text-align: center;
+    animation: pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
+
+  @keyframes pop {
+    from { transform: scale(0.5); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+
+  .win-subtitle {
+    color: var(--muted);
+    font-size: 0.75rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    text-align: center;
+  }
+
+  .win-stats {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    padding: 1.5rem 2rem;
+    border-radius: 4px;
+    display: flex; gap: 3rem;
+    font-size: 0.75rem;
+  }
+
+  .win-stat { display: flex; flex-direction: column; gap: 0.3rem; text-align: center; }
+  .win-stat-label { font-size: 0.55rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); }
+  .win-stat-val { font-family: 'Bebas Neue', sans-serif; font-size: 2rem; color: var(--win); }
+
+  .btn-rematch {
+    background: var(--win);
+    color: #000;
+    border: none;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.5rem;
+    letter-spacing: 0.1em;
+    padding: 0.8rem 2.5rem;
+    cursor: pointer; border-radius: 2px;
+    transition: background 0.2s, transform 0.15s;
+  }
+
+  .btn-rematch:hover { background: #5fffA0; transform: scale(1.02); }
+
+  .btn-new-players {
+    background: none; border: 1px solid var(--border);
+    color: var(--muted); font-family: 'DM Mono', monospace;
+    font-size: 0.7rem; letter-spacing: 0.15em; text-transform: uppercase;
+    padding: 0.5rem 1.2rem; cursor: pointer; border-radius: 2px;
+    transition: border-color 0.2s, color 0.2s;
+  }
+
+  .btn-new-players:hover { border-color: var(--text); color: var(--text); }
+
+  @media (max-width: 420px) {
+    .scoreboard { grid-template-columns: 1fr 1fr; }
+    .score-big { font-size: 3rem; }
+    .win-stats { gap: 1.5rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════════ SETUP ══════════════ -->
+<div id="setup">
+  <div>
+    <div class="logo">FLÉCH<span>ETTES</span></div>
+    <div class="tagline" style="text-align:center;margin-top:.5rem">501 · Règles classiques</div>
+  </div>
+
+  <div class="setup-card">
+    <div class="player-row">
+      <label>Joueur 1</label>
+      <input id="name1" type="text" placeholder="Entrez un pseudo" maxlength="16" autocomplete="off">
+    </div>
+    <div class="player-row">
+      <label>Joueur 2</label>
+      <input id="name2" type="text" placeholder="Entrez un pseudo" maxlength="16" autocomplete="off">
+    </div>
+    <button class="btn-start" onclick="startGame()">LANCER LA PARTIE</button>
+  </div>
+</div>
+
+<!-- ══════════════ GAME ══════════════ -->
+<div id="game">
+
+  <div class="topbar">
+    <div class="topbar-logo">501</div>
+    <div class="round-badge" id="round-label">MANCHE 1</div>
+    <button class="btn-reset" onclick="resetToSetup()">↩ NOUVEAU</button>
+  </div>
+
+  <div class="scoreboard">
+    <div class="player-panel active" id="panel1">
+      <div class="active-indicator"></div>
+      <div class="player-name" id="pname1">—</div>
+      <div class="score-big" id="pscore1">501</div>
+      <div class="stats-row">
+        <div class="stat">
+          <span class="stat-label">Moy.</span>
+          <span class="stat-value" id="pmoy1">—</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Volées</span>
+          <span class="stat-value" id="pvolees1">0</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Meilleur</span>
+          <span class="stat-value" id="pbest1">—</span>
+        </div>
+      </div>
+    </div>
+    <div class="player-panel" id="panel2">
+      <div class="active-indicator"></div>
+      <div class="player-name" id="pname2">—</div>
+      <div class="score-big" id="pscore2">501</div>
+      <div class="stats-row">
+        <div class="stat">
+          <span class="stat-label">Moy.</span>
+          <span class="stat-value" id="pmoy2">—</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Volées</span>
+          <span class="stat-value" id="pvolees2">0</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Meilleur</span>
+          <span class="stat-value" id="pbest2">—</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="history-strip" id="history">
+    <span class="hist-label">HISTORIQUE</span>
+  </div>
+
+  <div class="input-area">
+    <div class="turn-label">Tour de <span id="turn-name">—</span></div>
+
+    <div class="score-input-row">
+      <input class="score-input" id="scoreInput" type="number" min="0" max="180"
+             placeholder="0" inputmode="numeric" autocomplete="off"
+             onkeydown="handleKey(event)">
+      <button class="btn-validate" onclick="submitScore()">OK ✓</button>
+    </div>
+
+    <div class="error-msg" id="errMsg"></div>
+
+    <!-- Quick scores pad -->
+    <div class="quick-pad" id="quickPad"></div>
+  </div>
+</div>
+
+<!-- ══════════════ WIN OVERLAY ══════════════ -->
+<div id="win-overlay">
+  <div class="win-title" id="win-title">VICTOIRE !</div>
+  <div class="win-subtitle" id="win-subtitle">— a remporté la partie</div>
+  <div class="win-stats">
+    <div class="win-stat">
+      <span class="win-stat-label">Moyenne</span>
+      <span class="win-stat-val" id="win-moy">—</span>
+    </div>
+    <div class="win-stat">
+      <span class="win-stat-label">Volées</span>
+      <span class="win-stat-val" id="win-volees">—</span>
+    </div>
+    <div class="win-stat">
+      <span class="win-stat-label">Meilleur</span>
+      <span class="win-stat-val" id="win-best">—</span>
+    </div>
+  </div>
+  <button class="btn-rematch" onclick="rematch()">↺ REVANCHE</button>
+  <button class="btn-new-players" onclick="resetToSetup()">Changer de joueurs</button>
+</div>
+
+<script>
+  // ─── STATE ───────────────────────────────────────────
+  let state = {};
+
+  const QUICK_SCORES = [26, 41, 45, 60, 81, 85, 100, 121, 140, 180];
+
+  function initState(n1, n2) {
+    state = {
+      names: [n1, n2],
+      points: [501, 501],
+      totals: [0, 0],
+      volees: [0, 0],
+      bests: [0, 0],
+      turn: 0,   // 0 = joueur1, 1 = joueur2
+      round: 1,
+    };
+  }
+
+  // ─── START ───────────────────────────────────────────
+  function startGame() {
+    const n1 = document.getElementById('name1').value.trim() || 'Joueur 1';
+    const n2 = document.getElementById('name2').value.trim() || 'Joueur 2';
+    initState(n1, n2);
+    document.getElementById('setup').style.display = 'none';
+    document.getElementById('game').style.display = 'flex';
+    renderAll();
+    buildQuickPad();
+    document.getElementById('scoreInput').focus();
+  }
+
+  // ─── SUBMIT ──────────────────────────────────────────
+  function submitScore() {
+    const input = document.getElementById('scoreInput');
+    const err = document.getElementById('errMsg');
+    const val = parseInt(input.value);
+
+    if (isNaN(val) || val < 0) {
+      showError('Entrez un score valide.'); shake(); return;
+    }
+    if (val > 180) {
+      showError('Score maximum : 180 !'); shake(); return;
+    }
+
+    const t = state.turn;
+    const newPts = state.points[t] - val;
+
+    if (newPts < 0) {
+      showError('Score trop élevé — vous dépasseriez 0 !'); shake(); return;
+    }
+
+    err.textContent = '';
+
+    // Update state
+    state.totals[t] += val;
+    state.volees[t]++;
+    if (val > state.bests[t]) state.bests[t] = val;
+    state.points[t] = newPts;
+
+    addHistory(t, val);
+
+    if (newPts === 0) {
+      renderAll();
+      setTimeout(() => showWin(t), 300);
+      return;
+    }
+
+    // Switch turn
+    if (t === 1) state.round++;
+    state.turn = t === 0 ? 1 : 0;
+
+    renderAll();
+    input.value = '';
+    input.focus();
+  }
+
+  function handleKey(e) {
+    if (e.key === 'Enter') submitScore();
+  }
+
+  function shake() {
+    const inp = document.getElementById('scoreInput');
+    inp.classList.remove('error');
+    void inp.offsetWidth;
+    inp.classList.add('error');
+    setTimeout(() => inp.classList.remove('error'), 400);
+  }
+
+  function showError(msg) {
+    document.getElementById('errMsg').textContent = msg;
+  }
+
+  // ─── RENDER ──────────────────────────────────────────
+  function renderAll() {
+    for (let i = 0; i < 2; i++) {
+      document.getElementById(`pname${i+1}`).innerHTML = state.names[i];
+      const scoreEl = document.getElementById(`pscore${i+1}`);
+      scoreEl.textContent = state.points[i];
+      scoreEl.classList.toggle('score-danger', state.points[i] <= 50 && state.points[i] > 0);
+
+      const moy = state.volees[i] > 0
+        ? (state.totals[i] / state.volees[i]).toFixed(1)
+        : '—';
+      document.getElementById(`pmoy${i+1}`).textContent = moy;
+      document.getElementById(`pvolees${i+1}`).textContent = state.volees[i];
+      document.getElementById(`pbest${i+1}`).textContent = state.bests[i] || '—';
+
+      const panel = document.getElementById(`panel${i+1}`);
+      panel.classList.toggle('active', state.turn === i);
+    }
+
+    document.getElementById('turn-name').textContent = state.names[state.turn];
+    document.getElementById('round-label').textContent = `MANCHE ${state.round}`;
+  }
+
+  // ─── HISTORY ─────────────────────────────────────────
+  function addHistory(playerIdx, score) {
+    const strip = document.getElementById('history');
+    const tag = document.createElement('span');
+    tag.className = `hist-tag hist-p${playerIdx + 1}`;
+    tag.textContent = `${state.names[playerIdx]}: ${score > 0 ? '+' : ''}${score}`;
+    strip.appendChild(tag);
+    strip.scrollLeft = strip.scrollWidth;
+  }
+
+  // ─── QUICK PAD ───────────────────────────────────────
+  function buildQuickPad() {
+    const pad = document.getElementById('quickPad');
+    pad.innerHTML = '';
+    QUICK_SCORES.forEach(s => {
+      const b = document.createElement('button');
+      b.className = 'q-btn';
+      b.textContent = s;
+      b.onclick = () => {
+        document.getElementById('scoreInput').value = s;
+        document.getElementById('scoreInput').focus();
+      };
+      pad.appendChild(b);
+    });
+  }
+
+  // ─── WIN ─────────────────────────────────────────────
+  function showWin(winnerIdx) {
+    const n = state.names[winnerIdx];
+    const moy = (state.totals[winnerIdx] / state.volees[winnerIdx]).toFixed(1);
+    const v = state.volees[winnerIdx];
+    const b = state.bests[winnerIdx];
+
+    document.getElementById('win-title').textContent = n.toUpperCase();
+    document.getElementById('win-subtitle').textContent = '— a remporté la partie !';
+    document.getElementById('win-moy').textContent = moy;
+    document.getElementById('win-volees').textContent = v;
+    document.getElementById('win-best').textContent = b;
+
+    const ov = document.getElementById('win-overlay');
+    ov.style.display = 'flex';
+  }
+
+  function rematch() {
+    document.getElementById('win-overlay').style.display = 'none';
+    document.getElementById('history').innerHTML = '<span class="hist-label">HISTORIQUE</span>';
+    initState(state.names[0], state.names[1]);
+    renderAll();
+    document.getElementById('scoreInput').value = '';
+    document.getElementById('errMsg').textContent = '';
+    document.getElementById('scoreInput').focus();
+  }
+
+  function resetToSetup() {
+    document.getElementById('win-overlay').style.display = 'none';
+    document.getElementById('game').style.display = 'none';
+    document.getElementById('setup').style.display = 'flex';
+    document.getElementById('history').innerHTML = '<span class="hist-label">HISTORIQUE</span>';
+    document.getElementById('scoreInput').value = '';
+    document.getElementById('errMsg').textContent = '';
+    document.getElementById('name1').value = '';
+    document.getElementById('name2').value = '';
+  }
+
+  // Enter on setup inputs
+  document.addEventListener('DOMContentLoaded', () => {
+    ['name1','name2'].forEach(id => {
+      document.getElementById(id).addEventListener('keydown', e => {
+        if (e.key === 'Enter') startGame();
+      });
+    });
+  });
+</script>
+</body>
+</html>
