@@ -345,6 +345,18 @@
   }
   .np-btn:active::after { transform: scale(2); opacity: 1; transition: 0s; }
 
+  .btn-undo {
+    background: none; border: 1px solid var(--border);
+    color: var(--muted); font-family: 'DM Mono', monospace;
+    font-size: 0.6rem; letter-spacing: 0.1em;
+    text-transform: uppercase; padding: 0.4rem 0.7rem;
+    cursor: pointer; border-radius: 4px;
+    margin-right: 5px;
+    transition: all 0.2s;
+  }
+  .btn-undo:active { border-color: var(--accent); color: var(--accent); }
+  .btn-undo:disabled { opacity: 0.3; cursor: not-allowed; }
+
   /* ══════════ WIN OVERLAY ══════════ */
   #win-overlay {
     display: none;
@@ -508,7 +520,10 @@
   <div class="topbar">
     <div class="topbar-logo">DARTS</div>
     <div class="round-badge" id="round-label">MANCHE 1</div>
-    <button class="btn-reset" onclick="resetToSetup()">↩ NOUVEAU</button>
+    <div>
+      <button class="btn-undo" id="undo-btn" onclick="undoLastMove()" disabled>⟲ ANNULER</button>
+      <button class="btn-reset" onclick="resetToSetup()">↩ NOUVEAU</button>
+    </div>
   </div>
 
   <div class="scoreboard">
@@ -616,6 +631,25 @@
 <script>
 let state = {};
   let currentInput = '';
+  let historyState = null; 
+  
+  function undoLastMove() {
+    if (!historyState) return;
+    
+    // On restaure l'état
+    state = JSON.parse(JSON.stringify(historyState));
+    historyState = null; // On ne peut annuler qu'une seule fois
+    
+    // On retire le dernier tag de l'historique visuel
+    const strip = document.getElementById('history');
+    if (strip.lastChild && strip.lastChild.className !== 'hist-label') {
+      strip.removeChild(strip.lastChild);
+    }
+    
+    document.getElementById('undo-btn').disabled = true;
+    renderAll();
+    clearError();
+  }
 
   // Table des finitions standards (Checkouts)
   const CHECKOUTS = {
@@ -723,6 +757,7 @@ let state = {};
     const val = parseInt(currentInput) || 0;
     const disp = document.getElementById('scoreDisplay');
 
+    // 1. Vérification du score maximum
     if (val > 180) {
       showError('Score maximum : 180 !');
       disp.classList.add('error-border');
@@ -733,6 +768,7 @@ let state = {};
     const t = state.turn;
     const newPts = state.points[t] - val;
 
+    // 2. Vérification du score impossible (Bust)
     if (newPts < 0 || newPts === 1) {
       showError('Score impossible (reste 1 ou < 0)');
       disp.classList.add('error-border');
@@ -740,6 +776,11 @@ let state = {};
       return;
     }
 
+    // 3. Sauvegarde pour annulation (Undo)
+    historyState = JSON.parse(JSON.stringify(state));
+    document.getElementById('undo-btn').disabled = false;
+
+    // 4. Mise à jour des scores
     clearError();
     state.totals[t] += val;
     state.volees[t]++;
@@ -750,12 +791,14 @@ let state = {};
     currentInput = '';
     updateDisplay();
 
+    // 5. Vérification de la victoire
     if (newPts === 0) {
       renderAll();
       setTimeout(() => showWin(t), 300);
       return;
     }
 
+    // 6. Changement de tour
     if (t === 1) state.round++;
     state.turn = t === 0 ? 1 : 0;
     renderAll();
@@ -811,6 +854,8 @@ let state = {};
     initState(state.names[0], state.names[1]);
     renderAll();
     updateDisplay();
+    document.getElementById('undo-btn').disabled = true;
+    historyState = null;
   }
 
   function resetToSetup() {
@@ -820,6 +865,8 @@ let state = {};
     document.getElementById('history').innerHTML = '<span class="hist-label">HISTORIQUE —</span>';
     document.getElementById('name1').value = '';
     document.getElementById('name2').value = '';
+    document.getElementById('undo-btn').disabled = true;
+    historyState = null;
   }
 
   function startGame() {
