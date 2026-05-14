@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Fléchettes 501</title>
+<title>Fléchettes</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -413,6 +413,71 @@
     width: 100%;
   }
   .btn-new-players:active { border-color: var(--text); color: var(--text); }
+
+  /* Bouton Suggestion Finish */
+  .finish-hint-btn {
+    display: inline-block;
+    margin-left: 10px;
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: 4px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 0.8rem;
+    padding: 2px 8px;
+    cursor: pointer;
+    vertical-align: middle;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.6; }
+    100% { opacity: 1; }
+  }
+
+  /* Modal Finish */
+  #finish-modal {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 200;
+    align-items: center; justify-content: center;
+    padding: 2rem;
+  }
+
+  .finish-card {
+    background: var(--panel);
+    border: 1px solid var(--accent);
+    padding: 1.5rem;
+    border-radius: 8px;
+    width: 100%; max-width: 300px;
+    text-align: center;
+  }
+
+  .finish-card h3 {
+    font-family: 'Bebas Neue', sans-serif;
+    color: var(--accent);
+    margin-bottom: 1rem;
+  }
+
+  .finish-path {
+    font-family: 'DM Mono', monospace;
+    font-size: 1.2rem;
+    letter-spacing: 0.1em;
+    margin-bottom: 1.5rem;
+  }
+
+  .btn-close-finish {
+    background: var(--border);
+    color: var(--text);
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    cursor: pointer;
+  }
 </style>
 </head>
 <body>
@@ -441,7 +506,7 @@
 <div id="game">
 
   <div class="topbar">
-    <div class="topbar-logo">501</div>
+    <div class="topbar-logo">DARTS</div>
     <div class="round-badge" id="round-label">MANCHE 1</div>
     <button class="btn-reset" onclick="resetToSetup()">↩ NOUVEAU</button>
   </div>
@@ -540,11 +605,82 @@
     <button class="btn-rematch" onclick="rematch()">↺ REVANCHE</button>
     <button class="btn-new-players" onclick="resetToSetup()">Changer de joueurs</button>
   </div>
+</div><div id="finish-modal" onclick="this.style.display='none'">
+  <div class="finish-card" onclick="event.stopPropagation()">
+    <h3 id="finish-score-title">FINISH 170</h3>
+    <div class="finish-path" id="finish-path-val">T20 - T20 - BULL</div>
+    <button class="btn-close-finish" onclick="document.getElementById('finish-modal').style.display='none'">FERMER</button>
+  </div>
 </div>
 
 <script>
-  let state = {};
+let state = {};
   let currentInput = '';
+
+  // Table des finitions standards (Checkouts)
+  const CHECKOUTS = {
+    170: ["T20 T20 BULL"], 167: ["T20 T19 BULL"], 164: ["T20 T18 BULL"], 161: ["T20 T17 BULL"],
+    160: ["T20 T20 D20"], 158: ["T20 T20 D19"], 157: ["T20 T19 D20"], 156: ["T20 T20 D18"],
+    155: ["T20 T19 D19"], 154: ["T20 T18 D20"], 153: ["T20 T19 D18"], 152: ["T20 T17 D20"],
+    151: ["T20 T17 D19"], 150: ["T20 T18 D18", "BULL BULL BULL"], 149: ["T20 T19 D16"],
+    148: ["T20 T16 D20"], 147: ["T20 T17 D18"], 146: ["T20 T18 D16"], 145: ["T20 T15 D20"],
+    144: ["T20 T20 D12"], 143: ["T20 T17 D16"], 142: ["T20 T14 D20"], 141: ["T20 T15 D18", "T20 T19 D12"],
+    140: ["T20 T16 D16", "T20 T20 D10"], 139: ["T19 T14 D20"], 138: ["T20 T18 D12"], 137: ["T19 T20 D10"],
+    136: ["T20 T20 D8"], 135: ["T20 T15 D15", "25 T20 D25"], 134: ["T20 T14 D16"], 133: ["T20 T19 D8"],
+    132: ["T20 T16 D12", "BULL T14 D20"], 131: ["T20 T13 D16"], 130: ["T20 T18 D8", "T19 T19 D8"],
+    129: ["T19 T16 D12"], 128: ["T18 T14 D16"], 127: ["T20 T17 D8"], 126: ["T19 T19 D6"],
+    125: ["25 T20 D20", "BULL T15 D15"], 124: ["T20 T16 D8", "T20 T14 D11"], 123: ["T19 T16 D9"],
+    122: ["T18 T20 D4"], 121: ["T20 T15 D8", "T17 T20 D5"], 120: ["T20 20 D20"], 119: ["T19 T14 D10"],
+    118: ["T20 18 D20"], 117: ["T20 17 D20", "T19 20 D20"], 116: ["T20 16 D20"], 115: ["T20 15 D20", "T19 18 D20"],
+    114: ["T20 14 D20"], 113: ["T19 16 D20"], 112: ["T20 12 D20"], 111: ["T20 11 D20", "T19 14 D20"],
+    110: ["T20 10 D20", "T20 BULL"], 109: ["T19 12 D20"], 108: ["T20 8 D20"], 107: ["T19 10 D20", "T19 BULL"],
+    106: ["T20 6 D20"], 105: ["T19 8 D20"], 104: ["T18 10 D20", "T18 BULL"], 103: ["T19 6 D20"],
+    102: ["T20 2 D20"], 101: ["T17 10 D20", "T17 BULL", "T20 1 D20"], 100: ["T20 D20"],
+    99: ["T19 10 D16"], 98: ["T20 D19"], 97: ["T19 D20"], 96: ["T20 D18"], 95: ["T19 D19", "T15 BULL"],
+    94: ["T18 D20"], 93: ["T19 D18"], 92: ["T20 D16"], 91: ["T17 D20"], 90: ["T18 D18", "T20 D15"],
+    89: ["T19 D16"], 88: ["T16 D20"], 87: ["T17 D18"], 86: ["T18 D16"], 85: ["T15 D20"],
+    84: ["T16 D18"], 83: ["T17 D16"], 82: ["T14 D20", "BULL D16"], 81: ["T15 D18"], 80: ["T16 D16"],
+    79: ["T13 D20"], 78: ["T14 D18"], 77: ["T15 D16"], 76: ["T20 D8"], 75: ["T13 D18"],
+    74: ["T14 D16"], 73: ["T19 D8"], 72: ["T16 D12", "T12 D18"], 71: ["T13 D16"], 70: ["T10 D20", "T18 D8"],
+    69: ["T15 D12"], 68: ["T16 D10"], 67: ["T17 D8", "T9 D20"], 66: ["T10 D18"], 65: ["T15 D10", "25 D20"],
+    64: ["D32 (D16 D16)"], 63: ["T13 D12"], 62: ["T10 D16"], 61: ["T15 D8", "25 D18"], 60: ["20 D20"],
+    59: ["19 D20"], 58: ["18 D20"], 57: ["17 D20"], 56: ["16 D20"], 55: ["15 D20"], 54: ["14 D20"],
+    53: ["13 D20"], 52: ["12 D20"], 51: ["11 D20"], 50: ["10 D20", "BULL"], 49: ["9 D20"],
+    48: ["8 D20", "16 D16"], 47: ["7 D20"], 46: ["6 D20", "14 D16"], 45: ["5 D20", "13 D16"],
+    44: ["4 D20", "12 D16"], 43: ["3 D20", "11 D16"], 42: ["2 D20", "10 D16"], 41: ["1 D20", "9 D16"],
+    40: ["D20"], 38: ["D19"], 36: ["D18"], 34: ["D17"], 32: ["D16"], 30: ["D15"], 28: ["D14"],
+    26: ["D13"], 24: ["D12"], 22: ["D11"], 20: ["D10"], 18: ["D9"], 16: ["D8"], 14: ["D7"],
+    12: ["D6"], 10: ["D5"], 8: ["D4"], 6: ["D3"], 4: ["D2"], 2: ["D1"]
+  };
+
+  function getCheckout(score) {
+    if (score > 170 || score < 2) return null;
+    
+    // Si le score est dans la liste, on renvoie le tableau des chemins
+    if (CHECKOUTS[score]) return CHECKOUTS[score];
+    
+    return ["Pas de finish direct"];
+  }
+
+  function showFinish(score) {
+    const paths = getCheckout(score);
+    const container = document.getElementById('finish-path-val');
+    
+    document.getElementById('finish-score-title').textContent = "FINISH " + score;
+    
+    if (paths && paths.length > 0) {
+      // On affiche chaque possibilité avec un petit style sympa
+      container.innerHTML = paths.map(p => 
+        `<div style="padding: 10px; margin-bottom: 8px; background: rgba(255,255,255,0.05); border-radius: 4px; border-left: 3px solid var(--accent);">
+          ${p}
+        </div>`
+      ).join('');
+    } else {
+      container.innerHTML = "Aucun finish possible cette volée.";
+    }
+    
+    document.getElementById('finish-modal').style.display = 'flex';
+  }
 
   function initState(n1, n2) {
     state = {
@@ -559,9 +695,8 @@
     currentInput = '';
   }
 
-  // ─── NUMPAD ───────────────────────────────────────────
   function padPress(digit) {
-    if (currentInput.length >= 3) return; // max 3 chiffres (180)
+    if (currentInput.length >= 3) return;
     currentInput += digit;
     updateDisplay();
     clearError();
@@ -584,14 +719,13 @@
     }
   }
 
-  // ─── SUBMIT ───────────────────────────────────────────
   function submitScore() {
     const val = parseInt(currentInput) || 0;
     const disp = document.getElementById('scoreDisplay');
 
     if (val > 180) {
       showError('Score maximum : 180 !');
-      disp.classList.remove('error-border'); void disp.offsetWidth; disp.classList.add('error-border');
+      disp.classList.add('error-border');
       setTimeout(() => disp.classList.remove('error-border'), 400);
       return;
     }
@@ -599,15 +733,14 @@
     const t = state.turn;
     const newPts = state.points[t] - val;
 
-    if (newPts < 0) {
-      showError('Trop élevé — vous dépasseriez 0 !');
-      disp.classList.remove('error-border'); void disp.offsetWidth; disp.classList.add('error-border');
+    if (newPts < 0 || newPts === 1) {
+      showError('Score impossible (reste 1 ou < 0)');
+      disp.classList.add('error-border');
       setTimeout(() => disp.classList.remove('error-border'), 400);
       return;
     }
 
     clearError();
-
     state.totals[t] += val;
     state.volees[t]++;
     if (val > state.bests[t]) state.bests[t] = val;
@@ -628,28 +761,27 @@
     renderAll();
   }
 
-  // ─── RENDER ───────────────────────────────────────────
   function renderAll() {
     for (let i = 0; i < 2; i++) {
       document.getElementById(`pname${i+1}`).textContent = state.names[i];
       const scoreEl = document.getElementById(`pscore${i+1}`);
-      scoreEl.textContent = state.points[i];
-      scoreEl.classList.toggle('score-danger', state.points[i] <= 50 && state.points[i] > 0);
+      const s = state.points[i];
+      
+      // On affiche le score + le bouton finish si applicable
+      scoreEl.innerHTML = s + (s <= 170 && s > 1 ? ` <button class="finish-hint-btn" onclick="showFinish(${s})">FINISH ?</button>` : '');
+      
+      scoreEl.classList.toggle('score-danger', s <= 170 && s > 0);
 
-      const moy = state.volees[i] > 0
-        ? (state.totals[i] / state.volees[i]).toFixed(1)
-        : '—';
+      const moy = state.volees[i] > 0 ? (state.totals[i] / state.volees[i]).toFixed(1) : '—';
       document.getElementById(`pmoy${i+1}`).textContent = moy;
       document.getElementById(`pvolees${i+1}`).textContent = state.volees[i];
       document.getElementById(`pbest${i+1}`).textContent = state.bests[i] || '—';
-
       document.getElementById(`panel${i+1}`).classList.toggle('active', state.turn === i);
     }
     document.getElementById('turn-name').textContent = state.names[state.turn];
     document.getElementById('round-label').textContent = `MANCHE ${state.round}`;
   }
 
-  // ─── HISTORY ─────────────────────────────────────────
   function addHistory(playerIdx, score) {
     const strip = document.getElementById('history');
     const tag = document.createElement('span');
@@ -659,11 +791,9 @@
     strip.scrollLeft = strip.scrollWidth;
   }
 
-  // ─── ERRORS ──────────────────────────────────────────
   function showError(msg) { document.getElementById('errMsg').textContent = msg; }
   function clearError() { document.getElementById('errMsg').textContent = ''; }
 
-  // ─── WIN ──────────────────────────────────────────────
   function showWin(winnerIdx) {
     const n = state.names[winnerIdx];
     const moy = (state.totals[winnerIdx] / state.volees[winnerIdx]).toFixed(1);
@@ -681,7 +811,6 @@
     initState(state.names[0], state.names[1]);
     renderAll();
     updateDisplay();
-    clearError();
   }
 
   function resetToSetup() {
@@ -691,8 +820,6 @@
     document.getElementById('history').innerHTML = '<span class="hist-label">HISTORIQUE —</span>';
     document.getElementById('name1').value = '';
     document.getElementById('name2').value = '';
-    currentInput = '';
-    clearError();
   }
 
   function startGame() {
@@ -705,14 +832,10 @@
     updateDisplay();
   }
 
-  // Enter sur le setup
   ['name1','name2'].forEach(id => {
-    document.getElementById(id).addEventListener('keydown', e => {
-      if (e.key === 'Enter') startGame();
-    });
+    document.getElementById(id).addEventListener('keydown', e => { if (e.key === 'Enter') startGame(); });
   });
 
-  // Clavier physique (desktop)
   document.addEventListener('keydown', e => {
     if (document.getElementById('game').style.display !== 'flex') return;
     if (e.key >= '0' && e.key <= '9') padPress(e.key);
